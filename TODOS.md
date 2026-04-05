@@ -1,25 +1,57 @@
 # AgentHub - TODOS
 
-## 1. Real Trust Scoring Algorithm
-**What:** Implement a meaningful trust score for agents based on actual metrics (usage, success rate, deployment uptime, error rate).
-**Why:** Currently trust_score is a hardcoded 0-10 badge. For a real marketplace, users need data-driven trust signals to decide which agents to deploy.
-**Pros:** Core differentiator for the marketplace. Without it, AgentHub is just a directory.
-**Cons:** Requires telemetry collection, metrics pipeline, and scoring algorithm. Significant backend work.
-**Context:** The plan uses trust scores as a UI element now (0-10 badge). The algorithm can start simple: deploy success rate * 50 + avg uptime * 30 + user rating * 20.
-**Depends on:** Usage metrics collection, deployment logging, user feedback system.
+## 1. Billing/Monetization
+**What:** Add pricing tiers (free, paid, enterprise) and Stripe integration for paid agent usage.
+**Why:** Marketplace needs sustainability. Free agents get discovered, paid agents bring revenue. Platform takes a cut.
+**Pros:** Turns marketplace into a business. Agents with proven value can monetize.
+**Cons:** Large effort. Needs Stripe integration, usage metering, billing UI, tax handling. Deferring to post-launch.
+**Context:** The current plan focuses on adoption first. Monetization requires a working marketplace with real users. Without trust and traffic, charging for anything kills growth early on.
+**Depends on:** Real usage metrics, at least 100+ active users, stable deployment pipeline.
 
-## 2. Full Test Suite
-**What:** Comprehensive unit + integration + E2E test suite with >80% coverage.
-**Why:** Only 3 smoke tests in the hackathon. For production use, every codepath needs coverage, especially error paths and the agent orchestration flows.
-**Pros:** Catches regressions, enables CI/CD, gives confidence for refactors.
-**Cons:** Large effort. Every CrewAI agent flow, WebSocket path, and error handler needs dedicated tests. Mocking external APIs (Vercel, GitHub) is non-trivial.
-**Context:** Minimum viable tests (3 smoke tests) exist by hour 18 of the hackathon. The full suite should include: unit tests for schema parser, mocked Vercel deploy tests, mocked GitHub PR tests, WebSocket integration tests, and E2E flows for the full demo journey.
-**Depends on:** Stable API, defined agent contracts, CI/CD pipeline.
+## 2. IDE Integration (VS Code Extension, Cursor Plugin)
+**What:** IDE plugins that let developers discover and run agents directly from their editor.
+**Why:** Agents are developer tools — the best place to use them is inside the IDE, not a web browser. VS Code and Cursor already have extension ecosystems.
+**Pros:** Dramatically increases utility. Developers don't leave their workflow. Competitive moat against GitHub/Vercel.
+**Cons:** Need VS Code extension TypeScript dev, Cursor plugin compatibility. Another distribution channel to maintain.
+**Context:** Currently AgentHub is web-only. The IDE is where developers actually spend time. This is the biggest growth lever post-launch.
+**Depends on:** Stable marketplace API, agent contract API documented.
 
-## 3. Production CORS Configuration
-**What:** Replace `allow_origins=["*"]` with a proper domain allowlist and credentials support.
-**Why:** Wildcard CORS is fine for the hackathon with ngrok, but a security risk for production. Also blocks cookies/credentials which are needed for user auth.
-**Pros:** Proper security posture, enables credential-based auth, prevents XSS origin attacks.
-**Cons:** Requires dynamic origin management (users self-host). Need a config system for allowed domains.
-**Context:** During the hackathon, ngrok URLs change on every restart, so `["*"]` is the only practical approach. Post-hackathon, implement `CORSMiddleware` with env-configured origins + optional user-configured origins for self-hosted deployments.
-**Depends on:** Production deployment strategy, user domain management.
+## 3. Agent Execution Sandbox (for agents that don't deploy to Vercel)
+**What:** Run agent code in isolated Docker/firecracker containers instead of requiring Vercel deployment.
+**Why:** Not all agents are web-compatible. Some need GPU, long-running processes, or specific system dependencies. Vercel doesn't support everything.
+**Pros:** Supports any agent type. Full compatibility with all agent architectures. Removes the Vercel dependency constraint.
+**Cons:** Requires building compute infrastructure — containers, resource limits, security isolation, billing for compute. This is the "ocean" not the "lake."
+**Context:** If we get serious about non-Vercel agents (data scientists with heavy ML, agents needing file system access), we need this. Day 10+ or post-launch.
+**Depends on:** Real demand for non-Vercel agents, infrastructure budget, security review.
+
+## 4. Agent Versioning + Rollback
+**What:** Track agent versions, allow rollback to previous deployment, A/B test agent configurations.
+**Why:** Agent developers iterate. When a new version breaks, they need to roll back. A/B configs help optimize agent performance.
+**Pros:** Better developer experience. Production reliability. Performance optimization.
+**Cons:** Needs deployment history tracking, version comparison UI, config diff tooling. Moderate effort.
+**Context:** Each current deployment is one-shot. Redeploy overwrites the previous. Version history with rollback is a quality-of-life improvement post-launch.
+**Depends on:** Stable deployment pipeline, multi-deployment support.
+
+## 5. Agent Performance Benchmarking
+**What:** Standardized test suites that score agents on speed, accuracy, cost per request.
+**Why:** Trust scoring from reviews is subjective. Objective benchmarks let developers compare agents head-to-head.
+**Pros:** Core differentiator for marketplace. Helps users make data-driven decisions. Incentivizes agent quality.
+**Cons:** Need to build benchmark suites per category. Benchmarks can be gamed. Requires ongoing curation.
+**Context:** Trust scoring (Phase 4) covers subjective metrics. Benchmarks are the objective complement. Add after Days 1-10.
+**Depends on:** At least 5+ agents per category, standardized input/output format.
+
+## 6. Enterprise SSO + Audit Logs
+**What:** SAML SSO, team workspaces, deployment audit logs, role-based access.
+**Why:** Enterprise buyers need identity integration, compliance, and visibility into agent usage.
+**Pros:** Opens B2B revenue channel. Higher ACV. Compliance requirement for many orgs.
+**Cons:** Significant auth infrastructure. SAML is non-trivial. Audit logs need a separate index.
+**Context:** Current auth is per-user Vercel OAuth. Enterprise needs are orthogonal. Post-launch, post-PMF.
+**Depends on:** Product-market fit with individual developers, enterprise demand signal.
+
+## 7. Agent Forking & Collaboration
+**What:** Fork an agent, customize, publish as your variant. Original gets credit. Collaboration on shared agents.
+**Why:** The "fork-and-customize" pattern works for GitHub repos. It would work even better for agents — discover, fork, tweak system prompt, redeploy.
+**Pros:** Viral growth loop. Every fork is a new listing. Original agent gets attribution traffic.
+**Cons:** Needs agent dependency graph, attribution tracking, fork tree UI. Moderate complexity.
+**Context:** Mentioned in Phase 5 as a community feature. If there's time on Days 9-10, implement. Otherwise, TODO.
+**Depends on:** Working marketplace with submissions, agent metadata schema.
