@@ -1,0 +1,142 @@
+{
+  "project": "AgentHub",
+  "event": "HackIndia 24-Hour Hackathon",
+  "team": {
+    "team_lead_fullstack": "You - System integration, ngrok infra, final pitch",
+    "frontend_lead": "Sagar - React + Vite + Chakra UI marketplace UI",
+    "backend_debugger": "Jeet - FastAPI, Live Debugger agent, WebSocket streaming",
+    "backend_api_builder": "Krishna - FastAPI, API Builder agent, Vercel deploy automation"
+  },
+  "agents": {
+    "api_builder": { "status": "operational", "owner": "Krishna" },
+    "live_debugger": { "status": "operational", "owner": "Jeet" },
+    "system_architect": { "status": "coming_soon", "owner": "Sagar" },
+    "security_auditor": { "status": "coming_soon", "owner": "Sagar" }
+  },
+  "phases": [
+    {
+      "id": "phase-1-foundation",
+      "name": "Foundation",
+      "hours": "0-6",
+      "tasks": [
+        { "id": "t-1.1", "name": "Initialize React project with Vite", "owner": "Sagar", "dependencies": [], "status": "pending" },
+        { "id": "t-1.2", "name": "Install and configure Chakra UI", "owner": "Sagar", "dependencies": ["t-1.1"], "status": "pending" },
+        { "id": "t-1.3", "name": "Create base layout: header, navigation, routing", "owner": "Sagar", "dependencies": ["t-1.2"], "status": "pending" },
+        { "id": "t-1.4", "name": "Build marketplace home page shell (agent grid/cards)", "owner": "Sagar", "dependencies": ["t-1.3"], "status": "pending" },
+        { "id": "t-1.5", "name": "Set up React Router for agent detail pages", "owner": "Sagar", "dependencies": ["t-1.3"], "status": "pending" },
+        { "id": "t-1.6", "name": "Initialize FastAPI project", "owner": "You", "dependencies": [], "status": "pending" },
+        { "id": "t-1.7", "name": "Configure CORS, middleware, error handlers", "owner": "You", "dependencies": ["t-1.6"], "status": "pending" },
+        { "id": "t-1.8", "name": "Set up SQLAlchemy with SQLite database", "owner": "You", "dependencies": ["t-1.6"], "status": "pending" },
+        { "id": "t-1.9", "name": "Create initial models: Agent, Deployment, Metrics", "owner": "You", "dependencies": ["t-1.8"], "status": "pending" },
+        { "id": "t-1.10", "name": "Seed database with 4 agent entries", "owner": "You", "dependencies": ["t-1.9"], "status": "pending" },
+        { "id": "t-1.11", "name": "Basic REST endpoints: GET /agents, GET /agents/{id}", "owner": "You", "dependencies": ["t-1.10"], "status": "pending" },
+        { "id": "t-1.12", "name": "Add .env + .gitignore for all credentials", "owner": "You", "dependencies": ["t-1.6"], "status": "pending" },
+        { "id": "t-1.13", "name": "Startup validation: DB, API keys, Vercel CLI, GitHub PAT, seeds", "owner": "You", "dependencies": ["t-1.12"], "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-2-api-builder",
+      "name": "API Builder Agent",
+      "hours": "6-12",
+      "owner": "Krishna",
+      "tasks": [
+        { "id": "t-2.1", "name": "Install sqlglot, parse SQL DDL into structured model", "owner": "Krishna", "dependencies": ["t-1.11"], "status": "pending" },
+        { "id": "t-2.2", "name": "Parse NoSQL JSON schema into internal representation", "owner": "Krishna", "dependencies": ["t-2.1"], "status": "pending" },
+        { "id": "t-2.3", "name": "Validate schema syntax, return structured errors with line numbers", "owner": "Krishna", "dependencies": ["t-2.2"], "status": "pending" },
+        { "id": "t-2.4", "name": "Define CrewAI agent crew (schema analyst, endpoint designer, auth implementer)", "owner": "Krishna", "dependencies": ["t-2.3"], "status": "pending" },
+        { "id": "t-2.5", "name": "Generate REST API CRUD endpoints", "owner": "Krishna", "dependencies": ["t-2.4"], "status": "pending" },
+        { "id": "t-2.6", "name": "Add authentication middleware", "owner": "Krishna", "dependencies": ["t-2.5"], "status": "pending" },
+        { "id": "t-2.7", "name": "Implement rate limiting", "owner": "Krishna", "dependencies": ["t-2.6"], "status": "pending" },
+        { "id": "t-2.8", "name": "Generate OpenAPI/Swagger documentation", "owner": "Krishna", "dependencies": ["t-2.5"], "status": "pending" },
+        { "id": "t-2.9", "name": "Package generated API as deployable project (temp dir)", "owner": "Krishna", "dependencies": ["t-2.7", "t-2.8"], "status": "pending" },
+        { "id": "t-2.10", "name": "Run vercel deploy --prod --token=XXX as subprocess, capture URL", "owner": "Krishna", "dependencies": ["t-2.9"], "status": "pending" },
+        { "id": "t-2.11", "name": "Capture and return working URL (<90s target)", "owner": "Krishna", "dependencies": ["t-2.10"], "status": "pending" },
+        { "id": "t-2.12", "name": "POST /agents/api-builder/parse endpoint", "owner": "Krishna", "dependencies": ["t-2.3"], "status": "pending" },
+        { "id": "t-2.13", "name": "POST /agents/api-builder/generate endpoint", "owner": "Krishna", "dependencies": ["t-2.11"], "status": "pending" },
+        { "id": "t-2.14", "name": "GET /agents/api-builder/status/{job_id} endpoint", "owner": "Krishna", "dependencies": ["t-2.13"], "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-3-live-debugger",
+      "name": "Live Debugger Agent",
+      "hours": "12-18",
+      "owner": "Jeet",
+      "tasks": [
+        { "id": "t-3.1", "name": "WebSocket endpoint for real-time log streaming", "owner": "Jeet", "dependencies": ["t-1.7"], "status": "pending" },
+        { "id": "t-3.2", "name": "Connection management (connect, disconnect, reconnect)", "owner": "Jeet", "dependencies": ["t-3.1"], "status": "pending" },
+        { "id": "t-3.3", "name": "Subscribe/unsubscribe to debug sessions", "owner": "Jeet", "dependencies": ["t-3.2"], "status": "pending" },
+        { "id": "t-3.4", "name": "Connect to running applications via WebSocket", "owner": "Jeet", "dependencies": ["t-3.3"], "status": "pending" },
+        { "id": "t-3.5", "name": "Capture runtime exceptions with full context", "owner": "Jeet", "dependencies": ["t-3.4"], "status": "pending" },
+        { "id": "t-3.6", "name": "Collect stack traces and variable states", "owner": "Jeet", "dependencies": ["t-3.5"], "status": "pending" },
+        { "id": "t-3.7", "name": "Filter and deduplicate errors", "owner": "Jeet", "dependencies": ["t-3.6"], "status": "pending" },
+        { "id": "t-3.8", "name": "Define CrewAI agent crew (error analyzer -> fix engineer, 2 roles)", "owner": "Jeet", "dependencies": ["t-3.7"], "status": "pending" },
+        { "id": "t-3.9", "name": "Feed error + stack trace to LLM, return structured fix suggestion", "owner": "Jeet", "dependencies": ["t-3.8"], "status": "pending" },
+        { "id": "t-3.10", "name": "Display fix as diff view in UI with confidence level", "owner": "Jeet", "dependencies": ["t-3.9"], "status": "pending" },
+        { "id": "t-3.11", "name": "Configure GitHub OAuth token for PR creation", "owner": "Jeet", "dependencies": ["t-3.10"], "status": "pending" },
+        { "id": "t-3.12", "name": "Generate detailed PR description with diff view", "owner": "Jeet", "dependencies": ["t-3.11"], "status": "pending" },
+        { "id": "t-3.13", "name": "Auto-create pull request with fix (graceful fallback to diff if fails)", "owner": "Jeet", "dependencies": ["t-3.12"], "status": "pending" },
+        { "id": "t-3.14", "name": "WS /agents/debugger/connect/{app_url} endpoint", "owner": "Jeet", "dependencies": ["t-3.4"], "status": "pending" },
+        { "id": "t-3.15", "name": "POST /agents/debugger/capture endpoint", "owner": "Jeet", "dependencies": ["t-3.7"], "status": "pending" },
+        { "id": "t-3.16", "name": "GET /agents/debugger/sessions endpoint", "owner": "Jeet", "dependencies": ["t-3.15"], "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-4-integration",
+      "name": "Integration + Polish",
+      "hours": "18-22",
+      "tasks": [
+        { "id": "t-4.1", "name": "Wire agent showcase pages to real backend data", "owner": "Sagar", "dependencies": ["t-1.11"], "status": "pending" },
+        { "id": "t-4.2", "name": "Deploy modal triggers actual API Builder flow", "owner": "Sagar", "dependencies": ["t-4.1", "t-2.13"], "status": "pending" },
+        { "id": "t-4.3", "name": "Debug console shows real-time WebSocket logs", "owner": "Sagar", "dependencies": ["t-4.1", "t-3.1"], "status": "pending" },
+        { "id": "t-4.4", "name": "Agent metrics dashboard with live data", "owner": "Sagar", "dependencies": ["t-4.1"], "status": "pending" },
+        { "id": "t-4.5", "name": "System Architect detail page with 'Coming Soon' badge + roadmap", "owner": "Sagar", "dependencies": ["t-4.1"], "status": "pending" },
+        { "id": "t-4.6", "name": "Security Auditor detail page with 'Coming Soon' badge + roadmap", "owner": "Sagar", "dependencies": ["t-4.1"], "status": "pending" },
+        { "id": "t-4.7", "name": "Ensure both simulated agents show static 'Coming Soon' state, no fake flows", "owner": "Sagar", "dependencies": ["t-4.5", "t-4.6"], "status": "pending" },
+        { "id": "t-4.8", "name": "ngrok setup for frontend hosting", "owner": "You", "dependencies": ["t-4.1"], "status": "pending" },
+        { "id": "t-4.9", "name": "VS Code port forwarding for FastAPI backend", "owner": "You", "dependencies": ["t-1.11"], "status": "pending" },
+        { "id": "t-4.10", "name": "Test external judge access flow", "owner": "You", "dependencies": ["t-4.8", "t-4.9"], "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-5-testing",
+      "name": "Testing + Demo Prep",
+      "hours": "22-24",
+      "owner": "You",
+      "tasks": [
+        { "id": "t-5.1", "name": "Full marketplace browsing flow E2E test", "owner": "You", "dependencies": ["t-4.10"], "status": "pending" },
+        { "id": "t-5.2", "name": "API generation and deployment E2E test", "owner": "You", "dependencies": ["t-4.10", "t-2.13"], "status": "pending" },
+        { "id": "t-5.3", "name": "Debugger error capture to GitHub PR E2E test", "owner": "You", "dependencies": ["t-4.10", "t-3.14"], "status": "pending" },
+        { "id": "t-5.4", "name": "Simulated agent interaction verification", "owner": "You", "dependencies": ["t-4.7"], "status": "pending" },
+        { "id": "t-5.5", "name": "Fix critical path blockers", "owner": "Team", "dependencies": ["t-5.1", "t-5.2", "t-5.3", "t-5.4"], "status": "pending" },
+        { "id": "t-5.6", "name": "Handle edge cases in demo flow", "owner": "Team", "dependencies": ["t-5.5"], "status": "pending" },
+        { "id": "t-5.7", "name": "Performance check: API Builder <90s target", "owner": "You", "dependencies": ["t-5.6"], "status": "pending" },
+        { "id": "t-5.8", "name": "Time the 5-minute demo flow", "owner": "You", "dependencies": ["t-5.7"], "status": "pending" },
+        { "id": "t-5.9", "name": "Prepare backup/demo data (sample schemas, known bugs)", "owner": "You", "dependencies": ["t-5.8"], "status": "pending" },
+        { "id": "t-5.10", "name": "Verify ngrok stability and judge device access", "owner": "You", "dependencies": ["t-5.9"], "status": "pending" }
+      ]
+    }
+  ],
+  "demo_flow": [
+    "Browse marketplace",
+    "Generate and deploy a live API (API Builder)",
+    "Trigger autonomous bug detection and resolution (Live Debugger)"
+  ],
+  "success_criteria": {
+    "functional": [
+      "Marketplace displays all 4 agents with rich detail",
+      "API Builder: input schema -> live API URL in <90s",
+      "Live Debugger: capture error -> generate fix -> create GitHub PR",
+      "Simulated agents: convincing interactive UI demos"
+    ],
+    "infrastructure": [
+      "Frontend accessible via ngrok HTTPS",
+      "Backend accessible via VS Code port forwarding",
+      "Judges can interact on their own devices"
+    ],
+    "demo": [
+      "5-minute flow: browse -> build -> debug",
+      "No crashes or timeouts during demo",
+      "Clear proof that AI agents transcend conversational interfaces"
+    ]
+  }
+}
