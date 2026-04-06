@@ -31,7 +31,7 @@
         { "id": "t-1.1", "name": "Initialize Next.js App Router project with TypeScript", "owner": "You", "dependencies": [], "status": "completed" },
         { "id": "t-1.2", "name": "Install and configure shadcn/ui + Tailwind", "owner": "Sagar", "dependencies": ["t-1.1"], "status": "pending" },
         { "id": "t-1.3", "name": "Set up Neon Postgres on Vercel Marketplace", "owner": "You", "dependencies": [], "status": "completed" },
-        { "id": "t-1.4", "name": "Configure SQLAlchemy + Alembic (or Drizzle), run initial migrations", "owner": "You", "dependencies": ["t-1.3"], "status": "pending" },
+        { "id": "t-1.4", "name": "Configure SQLAlchemy + Alembic (or Drizzle), run initial migrations", "owner": "You", "dependencies": ["t-1.3"], "status": "completed", "note": "Config done. db:migrate pending until DATABASE_URL is set" },
         { "id": "t-1.5", "name": "Create models: User, Agent, Deployment, UsageMetric", "owner": "You", "dependencies": ["t-1.4"], "status": "completed" },
         { "id": "t-1.6", "name": "CRITICAL: Vercel cross-account deploy PoC — clone sample agent, deploy to test account, capture URL", "owner": "Krishna", "dependencies": ["t-1.3"], "status": "pending", "note": "Gate decision for entire architecture" },
         { "id": "t-1.7", "name": "If PoC fails: implement fallback GitHub 'Deploy to Vercel' template button", "owner": "Krishna", "dependencies": ["t-1.6"], "status": "pending", "note": "Only if PoC fails" },
