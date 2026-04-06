@@ -5,7 +5,7 @@ next-env.d.ts
 *.tsbuildinfo
 
 # Dependencies
-/node_modules/
+node_modules/
 
 # Environment
 .env
@@ -26,3 +26,6 @@ yarn-error.log*
 # OS
 .DS_Store
 *.pem
+
+# Local design docs
+DESIGN_SPEC.md

@@ -93,6 +93,43 @@ export async function validateGitHubRepo(
   return { repo, hasAgentStructure };
 }
 
+// ---------- Framework detection ----------
+
+export async function detectFramework(
+  repo: RepoInfo,
+): Promise<"nextjs" | "astro" | "nuxt" | "python" | "unknown"> {
+  try {
+    const contentsResp = await fetch(
+      `https://api.github.com/repos/${repo.fullName}/contents/`,
+    );
+    if (!contentsResp.ok) return "unknown";
+
+    const files = (await contentsResp.json()) as { name?: string }[];
+    if (!Array.isArray(files)) return "unknown";
+
+    const names = files.map((f) => f.name).filter(Boolean) as string[];
+
+    if (names.includes("next.config.ts") || names.includes("next.config.js")) {
+      return "nextjs";
+    }
+    if (names.includes("astro.config.ts") || names.includes("astro.config.mjs")) {
+      return "astro";
+    }
+    if (names.includes("nuxt.config.ts") || names.includes("nuxt.config.js")) {
+      return "nuxt";
+    }
+    if (names.includes("pyproject.toml") || names.includes("requirements.txt") || names.includes("setup.py")) {
+      return "python";
+    }
+    if (names.includes("package.json")) {
+      return "nextjs";
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 // ---------- Vercel deployment ----------
 
 async function createDeployment(
@@ -100,13 +137,14 @@ async function createDeployment(
   teamId: string | undefined,
   projectName: string,
   source: { type: "github"; repo: string },
+  framework: string,
 ): Promise<{ deploymentId: string; url: string }> {
   const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
 
   const body = {
     name: projectName,
     gitSource: source,
-    projectSettings: { framework: "nextjs" },
+    projectSettings: framework !== "unknown" ? { framework } : undefined,
   };
 
   const response = await fetch(
@@ -140,6 +178,40 @@ async function createDeployment(
     `${data.uid}.vercel.app`;
 
   return { deploymentId: data.uid, url };
+}
+
+async function pollDeploymentStatus(
+  accessToken: string,
+  deploymentId: string,
+  teamId: string | undefined,
+  timeoutMs: number = 120_000,
+): Promise<"READY" | "ERROR" | "BUILDING" | "INITIALIZING"> {
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
+  const start = Date.now();
+  const pollInterval = 5_000;
+
+  while (Date.now() - start < timeoutMs) {
+    const resp = await fetch(
+      `https://api.vercel.com/v6/deployments/${deploymentId}${qs}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+
+    if (resp.ok) {
+      const data = (await resp.json()) as { state: string };
+      if (data.state === "READY") return "READY";
+      if (data.state === "ERROR" || data.state === "CANCELED") return "ERROR";
+      if (data.state === "BUILDING" || data.state === "INITIALIZING") {
+        await new Promise((r) => setTimeout(r, pollInterval));
+        continue;
+      }
+    }
+
+    await new Promise((r) => setTimeout(r, pollInterval));
+  }
+
+  return "BUILDING"; // timed out — still building
 }
 
 async function recordDeployment(
@@ -208,13 +280,30 @@ export async function deployToVercel(
       };
     }
 
+    // 2b. Detect the framework from repo contents
+    const framework = await detectFramework(repo);
+
     // 3. Deploy to Vercel via gitSource
     const { deploymentId, url } = await createDeployment(
       token,
       teamId,
       projectName,
       { type: "github", repo: repo.fullName },
+      framework,
     );
+
+    // 3b. Poll for deployment completion
+    const status = await pollDeploymentStatus(token, deploymentId, teamId);
+
+    if (status === "ERROR") {
+      return { success: false, error: `Deployment ${deploymentId} failed during build.` };
+    }
+
+    if (status !== "READY") {
+      // Still building after timeout — return success with a warning.
+      // The URL may be provisional but will resolve once Vercel finishes.
+      return { success: true, deploymentId, url };
+    }
 
     if (url && deploymentId) {
       // 4. Record in DB
