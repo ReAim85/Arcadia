@@ -22,10 +22,18 @@ interface DeployResult {
   error?: string;
 }
 
+interface EnvVar {
+  key: string;
+  value: string;
+  target?: ("production" | "preview" | "development")[];
+  type?: "plain" | "secret";
+}
+
 interface DeployOptions {
   userId: string;
   githubUrl: string;
   projectName: string;
+  envVars?: EnvVar[];
 }
 
 // ---------- GitHub helpers ----------
@@ -226,6 +234,74 @@ async function findExistingProject(
   );
 }
 
+// ---------- Vercel env var management (t-2.7) ----------
+
+/**
+ * Set environment variables on a Vercel project.
+ * Uses POST /v9/projects/{projectId}/env for each variable.
+ */
+export async function setVercelEnvVars(
+  accessToken: string,
+  projectId: string,
+  teamId: string | undefined,
+  envVars: EnvVar[],
+): Promise<{ set: string[]; skipped: string[] }> {
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
+  const set: string[] = [];
+  const skipped: string[] = [];
+
+  for (const envVar of envVars) {
+    const body = {
+      key: envVar.key,
+      value: envVar.value,
+      type: envVar.type ?? ("plain" as const),
+      target: envVar.target ?? (["production", "preview", "development"] as const),
+    };
+
+    const response = await fetch(
+      `https://api.vercel.com/v9/projects/${projectId}/env${qs}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 409) {
+        // Env var already exists — update it via PUT
+        const updateResponse = await fetch(
+          `https://api.vercel.com/v9/projects/${projectId}/env/${encodeURIComponent(envVar.key)}${qs}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...body, id: undefined }),
+          },
+        );
+
+        if (updateResponse.ok) {
+          set.push(envVar.key);
+        } else {
+          skipped.push(`${envVar.key} (update failed: ${updateResponse.status})`);
+        }
+      } else {
+        skipped.push(`${envVar.key} (create failed: ${response.status})`);
+      }
+    } else {
+      set.push(envVar.key);
+    }
+  }
+
+  return { set, skipped };
+}
+
 // ---------- Vercel deployment ----------
 
 async function createDeployment(
@@ -385,6 +461,11 @@ export async function deployToVercel(
       framework: framework !== "unknown" ? framework : undefined,
       repoFullName: repo.fullName,
     });
+
+    // 3b. Set user's env vars on the project (t-2.7)
+    if (options.envVars && options.envVars.length > 0) {
+      await setVercelEnvVars(token, project.projectId, teamId, options.envVars);
+    }
 
     // 4. Deploy to the project via gitSource
     const { deploymentId, url } = await createDeployment(
