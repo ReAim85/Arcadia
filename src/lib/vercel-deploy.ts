@@ -25,19 +25,72 @@ interface DeployOptions {
   projectName: string;
 }
 
-// ---------- GitHub helper ----------
+// ---------- GitHub helpers ----------
 
-function githubSource(githubUrl: string): {
-  type: "github";
+interface RepoInfo {
+  owner: string;
   repo: string;
-  ref?: string;
-} | null {
+  fullName: string;
+  defaultBranch: string;
+}
+
+export function parseGitHubUrl(githubUrl: string): RepoInfo | null {
   const m = githubUrl.match(
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/tree\/(.+))?$/,
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/tree\/.+)?$/,
   );
   if (!m) return null;
   const [, owner, repo] = m;
-  return { type: "github" as const, repo: `${owner}/${repo}` };
+  return { owner, repo, fullName: `${owner}/${repo}`, defaultBranch: "main" };
+}
+
+export async function validateGitHubRepo(
+  githubUrl: string,
+): Promise<{ repo: RepoInfo; hasAgentStructure: boolean }> {
+  const repo = parseGitHubUrl(githubUrl);
+  if (!repo) {
+    throw new Error(
+      "Invalid GitHub URL. Expected: https://github.com/owner/repo",
+    );
+  }
+
+  // Check the repo exists and is accessible
+  const resp = await fetch(
+    `https://api.github.com/repos/${repo.fullName}`,
+  );
+  if (!resp.ok) {
+    if (resp.status === 404) {
+      throw new Error(
+        `Repo not found: ${repo.fullName}. Check the URL and make sure the repo is public.`,
+      );
+    }
+    throw new Error(
+      `GitHub API returned ${resp.status} for ${repo.fullName}`,
+    );
+  }
+  const data = (await resp.json()) as { default_branch?: string };
+  if (data.default_branch) repo.defaultBranch = data.default_branch;
+
+  // Check for minimal project structure via GitHub Contents API:
+  // we expect at least a package.json or vercel.json at the root
+  const contentsResp = await fetch(
+    `https://api.github.com/repos/${repo.fullName}/contents/`,
+  );
+  let hasAgentStructure = false;
+  if (contentsResp.ok) {
+    const files = (await contentsResp.json()) as { name?: string }[];
+    if (Array.isArray(files)) {
+      const names = files.map((f) => f.name).filter(Boolean) as string[];
+      hasAgentStructure =
+        names.includes("package.json") ||
+        names.includes("vercel.json") ||
+        names.includes("pyproject.toml") ||
+        names.includes("requirements.txt") ||
+        names.includes("next.config.ts") ||
+        names.includes("next.config.js");
+    }
+  }
+
+  return { repo, hasAgentStructure };
 }
 
 // ---------- Vercel deployment ----------
@@ -138,13 +191,20 @@ export async function deployToVercel(
     const teamId: string | undefined =
       userResult.rows[0].vercel_team_id || undefined;
 
-    // 2. Parse the GitHub URL
-    const source = githubSource(githubUrl);
-    if (!source) {
+    // 2. Validate the GitHub repo exists and has minimum structure
+    let repoInfo: Awaited<ReturnType<typeof validateGitHubRepo>>;
+    try {
+      repoInfo = await validateGitHubRepo(githubUrl);
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
+
+    const { repo, hasAgentStructure } = repoInfo;
+    if (!hasAgentStructure) {
       return {
         success: false,
         error:
-          "Invalid GitHub URL. Expected format: https://github.com/owner/repo",
+          `Repo "${repo.fullName}" does not appear to be a deployable project. Expected package.json, vercel.json, or similar at the root.`,
       };
     }
 
@@ -153,7 +213,7 @@ export async function deployToVercel(
       token,
       teamId,
       projectName,
-      source,
+      { type: "github", repo: repo.fullName },
     );
 
     if (url && deploymentId) {

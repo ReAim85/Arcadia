@@ -48,8 +48,8 @@
       "tasks": [
         { "id": "t-2.1", "name": "Submit form UI: GitHub URL, name, description, category, env vars, demo config", "owner": "Sagar", "dependencies": ["t-1.8"], "status": "pending" },
         { "id": "t-2.2", "name": "Backend: GET /agents, GET /agents/{slug}, POST /agents/deploy endpoints", "owner": "You", "dependencies": ["t-1.5"], "status": "completed", "note": "API routes implemented with Neon Pool, build verified" },
-        { "id": "t-2.3", "name": "GitHub repo cloning and validation", "owner": "Krishna", "dependencies": ["t-1.6"], "status": "pending" },
-        { "id": "t-2.4", "name": "Agent structure validation (main.py, requirements.txt, .env.example)", "owner": "Krishna", "dependencies": ["t-2.3"], "status": "pending" },
+        { "id": "t-2.3", "name": "GitHub repo cloning and validation", "owner": "Krishna", "dependencies": ["t-1.6"], "status": "completed", "note": "validateGitHubRepo() in lib/vercel-deploy.ts checks repo exists via GitHub API, fetches default branch, validates minimal project structure (package.json, vercel.json, etc.)" },
+        { "id": "t-2.4", "name": "Agent structure validation (main.py, requirements.txt, .env.example)", "owner": "Krishna", "dependencies": ["t-2.3"], "status": "completed", "note": "Integrated into t-2.3 — checks for package.json, vercel.json, pyproject.toml, requirements.txt, next.config.ts/.js at repo root before deployment." },
         { "id": "t-2.5", "name": "Package agent as Vercel-deployable project (vercel.json, Fluid Compute config)", "owner": "Krishna", "dependencies": ["t-2.4"], "status": "pending" },
         { "id": "t-2.6", "name": "Vercel project creation via API (user's token)", "owner": "Krishna", "dependencies": ["t-1.9"], "status": "pending" },
         { "id": "t-2.7", "name": "Env var management — set user's .env as encrypted Vercel env vars", "owner": "Krishna", "dependencies": ["t-2.6"], "status": "pending" },
