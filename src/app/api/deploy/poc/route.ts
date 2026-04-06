@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      projectId: result.projectId,
       deploymentId: result.deploymentId,
       url: result.url,
       message: `Deployed successfully to ${result.url}`,

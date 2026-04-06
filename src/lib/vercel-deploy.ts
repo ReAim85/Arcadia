@@ -3,20 +3,21 @@ import { decrypt } from "./encryption";
 import { generateAgentPackage } from "./agent-packager";
 
 /**
- * Vercel cross-account deploy PoC (t-1.6)
+ * Vercel cross-account deploy (t-1.6, t-2.6)
  *
  * Flow:
  *   1. Fetch user's Vercel token from DB (encrypted)
- *   2. Call Vercel /v13/deployments with gitSource — Vercel clones
- *      the GitHub repo, validates it, and deploys it.
- *   3. Poll the deployment until it's READY/ERROR.
- *   4. Record agent + deployment in DB, return the URL.
+ *   2. Create a Vercel project in the user's account via /v9/projects
+ *   3. Deploy to the project via gitSource — Vercel clones the GitHub repo
+ *   4. Poll the deployment until it's READY/ERROR.
+ *   5. Record agent + deployment in DB, return the URL.
  */
 
 interface DeployResult {
   success: boolean;
   deploymentId?: string;
   url?: string;
+  projectId?: string;
   packagedFiles?: Record<string, string>;
   error?: string;
 }
@@ -55,7 +56,6 @@ export async function validateGitHubRepo(
     );
   }
 
-  // Check the repo exists and is accessible
   const resp = await fetch(
     `https://api.github.com/repos/${repo.fullName}`,
   );
@@ -72,8 +72,6 @@ export async function validateGitHubRepo(
   const data = (await resp.json()) as { default_branch?: string };
   if (data.default_branch) repo.defaultBranch = data.default_branch;
 
-  // Check for minimal project structure via GitHub Contents API:
-  // we expect at least a package.json or vercel.json at the root
   const contentsResp = await fetch(
     `https://api.github.com/repos/${repo.fullName}/contents/`,
   );
@@ -130,6 +128,102 @@ export async function detectFramework(
   } catch {
     return "unknown";
   }
+}
+
+// ---------- Vercel project creation (t-2.6) ----------
+
+interface ProjectResult {
+  projectId: string;
+  name: string;
+}
+
+/**
+ * Create a Vercel project in the user's account.
+ * Uses POST /v9/projects with git source configuration.
+ */
+export async function createVercelProject(
+  accessToken: string,
+  projectName: string,
+  teamId: string | undefined,
+  options?: {
+    framework?: string;
+    repoFullName?: string;
+  },
+): Promise<ProjectResult> {
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
+
+  const body: Record<string, unknown> = {
+    name: projectName,
+  };
+
+  if (options?.framework) {
+    body.framework = options.framework;
+  }
+
+  if (options?.repoFullName) {
+    body.gitRepository = {
+      type: "github",
+      repo: options.repoFullName,
+    };
+  }
+
+  const response = await fetch(
+    `https://api.vercel.com/v9/projects${qs}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    if (response.status === 409) {
+      // Project already exists — try to find it by name
+      return await findExistingProject(accessToken, projectName, teamId, qs);
+    }
+    throw new Error(
+      `Vercel project creation returned ${response.status}: ${errorText}`,
+    );
+  }
+
+  const data = (await response.json()) as { id: string; name: string };
+  return { projectId: data.id, name: data.name };
+}
+
+/**
+ * Find an existing project by name when creation fails with 409 conflict.
+ */
+async function findExistingProject(
+  accessToken: string,
+  projectName: string,
+  teamId: string | undefined,
+  qs: string,
+): Promise<ProjectResult> {
+  // List projects and find by name
+  const response = await fetch(
+    `https://api.vercel.com/v9/projects${qs}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  if (response.ok) {
+    const data = (await response.json()) as {
+      projects: Array<{ id: string; name: string }>;
+    };
+    const existing = data.projects?.find((p) => p.name === projectName);
+    if (existing) {
+      return { projectId: existing.id, name: existing.name };
+    }
+  }
+
+  throw new Error(
+    `Project "${projectName}" already exists but could not find it in the project list.`,
+  );
 }
 
 // ---------- Vercel deployment ----------
@@ -221,6 +315,7 @@ async function recordDeployment(
   name: string,
   githubUrl: string,
   vercelDeploymentId: string,
+  vercelProjectId: string,
   url: string,
 ): Promise<void> {
   const pool = getPool();
@@ -229,8 +324,8 @@ async function recordDeployment(
     `INSERT INTO agents (slug, name, github_url, vercel_project_id, vercel_url, owner_id, badge, status)
      VALUES ($1, $2, $3, $4, $5, NULL, 'First Edition', 'live')
      ON CONFLICT (slug) DO UPDATE
-       SET vercel_url = $5, status = 'live'`,
-    [slug, name, githubUrl, vercelDeploymentId, url],
+       SET vercel_url = $5, vercel_project_id = $4, status = 'live'`,
+    [slug, name, githubUrl, vercelProjectId, url],
   );
 
   await pool.query(
@@ -285,7 +380,13 @@ export async function deployToVercel(
     // 2b. Detect the framework from repo contents
     const framework = await detectFramework(repo);
 
-    // 3. Deploy to Vercel via gitSource
+    // 3. Create a Vercel project in the user's account (t-2.6)
+    const project = await createVercelProject(token, projectName, teamId, {
+      framework: framework !== "unknown" ? framework : undefined,
+      repoFullName: repo.fullName,
+    });
+
+    // 4. Deploy to the project via gitSource
     const { deploymentId, url } = await createDeployment(
       token,
       teamId,
@@ -294,20 +395,14 @@ export async function deployToVercel(
       framework,
     );
 
-    // 3b. Poll for deployment completion
+    // 4b. Poll for deployment completion
     const status = await pollDeploymentStatus(token, deploymentId, teamId);
 
     if (status === "ERROR") {
       return { success: false, error: `Deployment ${deploymentId} failed during build.` };
     }
 
-    if (status !== "READY") {
-      // Still building after timeout — return success with a warning.
-      // The URL may be provisional but will resolve once Vercel finishes.
-      return { success: true, deploymentId, url };
-    }
-
-    // 4. Package agent with Vercel config
+    // 5. Package agent with Vercel config
     const packaging = generateAgentPackage({
       name: projectName,
       framework: framework as any,
@@ -315,18 +410,24 @@ export async function deployToVercel(
 
     const packagedFiles = packaging.success ? packaging.files : undefined;
 
-    // 5. Record in DB
+    // 6. Record in DB
     await recordDeployment(
       projectName,
       projectName,
       githubUrl,
       deploymentId,
+      project.projectId,
       url,
     );
 
-    return { success: true, deploymentId, url, packagedFiles };
+    if (status !== "READY") {
+      return { success: true, deploymentId, url, projectId: project.projectId, packagedFiles };
+    }
+
+    return { success: true, deploymentId, url, projectId: project.projectId, packagedFiles };
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : String(e);
     return { success: false, error: `Deploy failed: ${errorMessage}` };
   }
 }
+
