@@ -47,7 +47,7 @@
       "owner": "Krishna",
       "tasks": [
         { "id": "t-2.1", "name": "Submit form UI: GitHub URL, name, description, category, env vars, demo config", "owner": "Sagar", "dependencies": ["t-1.8"], "status": "pending" },
-        { "id": "t-2.2", "name": "Backend: GET /agents, GET /agents/{slug}, POST /agents/deploy endpoints", "owner": "You", "dependencies": ["t-1.5"], "status": "pending" },
+        { "id": "t-2.2", "name": "Backend: GET /agents, GET /agents/{slug}, POST /agents/deploy endpoints", "owner": "You", "dependencies": ["t-1.5"], "status": "completed", "note": "API routes implemented with Neon Pool, build verified" },
         { "id": "t-2.3", "name": "GitHub repo cloning and validation", "owner": "Krishna", "dependencies": ["t-1.6"], "status": "pending" },
         { "id": "t-2.4", "name": "Agent structure validation (main.py, requirements.txt, .env.example)", "owner": "Krishna", "dependencies": ["t-2.3"], "status": "pending" },
         { "id": "t-2.5", "name": "Package agent as Vercel-deployable project (vercel.json, Fluid Compute config)", "owner": "Krishna", "dependencies": ["t-2.4"], "status": "pending" },
