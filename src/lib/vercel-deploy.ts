@@ -1,5 +1,6 @@
 import { getPool } from "@/db/client";
 import { decrypt } from "./encryption";
+import { generateAgentPackage } from "./agent-packager";
 
 /**
  * Vercel cross-account deploy PoC (t-1.6)
@@ -16,6 +17,7 @@ interface DeployResult {
   success: boolean;
   deploymentId?: string;
   url?: string;
+  packagedFiles?: Record<string, string>;
   error?: string;
 }
 
@@ -305,18 +307,24 @@ export async function deployToVercel(
       return { success: true, deploymentId, url };
     }
 
-    if (url && deploymentId) {
-      // 4. Record in DB
-      await recordDeployment(
-        projectName,
-        projectName,
-        githubUrl,
-        deploymentId,
-        url,
-      );
-    }
+    // 4. Package agent with Vercel config
+    const packaging = generateAgentPackage({
+      name: projectName,
+      framework: framework as any,
+    });
 
-    return { success: true, deploymentId, url };
+    const packagedFiles = packaging.success ? packaging.files : undefined;
+
+    // 5. Record in DB
+    await recordDeployment(
+      projectName,
+      projectName,
+      githubUrl,
+      deploymentId,
+      url,
+    );
+
+    return { success: true, deploymentId, url, packagedFiles };
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : String(e);
     return { success: false, error: `Deploy failed: ${errorMessage}` };
