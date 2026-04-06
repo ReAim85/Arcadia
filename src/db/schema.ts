@@ -10,6 +10,8 @@ import {
 // Users — Vercel-connected
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
+  vercel_id: text("vercel_id").unique(),
+  username: text("username"),
   vercel_team_id: text("vercel_team_id"),
   vercel_token_encrypted: text("vercel_token_encrypted"),
   created_at: timestamp("created_at").defaultNow().notNull(),
