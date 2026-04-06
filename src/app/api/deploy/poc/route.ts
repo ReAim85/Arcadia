@@ -7,7 +7,7 @@ import { deployToVercel } from "@/lib/vercel-deploy";
  * Cross-account deploy PoC (t-1.6).
  *
  * Body:
- *   { userId: string; githubUrl: string; projectSlug?: string; projectName?: string }
+ *   { userId: string; githubUrl: string; projectName?: string }
  *
  * Returns the Vercel deployment URL if successful.
  */
@@ -17,12 +17,10 @@ export async function POST(request: Request) {
     const {
       userId,
       githubUrl,
-      projectSlug,
       projectName,
     }: {
       userId: string;
       githubUrl: string;
-      projectSlug?: string;
       projectName?: string;
     } = body;
 
@@ -33,13 +31,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const slug = projectSlug || `agent-${Date.now()}`;
-    const name = projectName || `Agent ${slug}`;
+    const name = projectName || `agent-${Date.now()}`;
 
     const result = await deployToVercel({
       userId,
       githubUrl,
-      projectSlug: slug,
       projectName: name,
     });
 
