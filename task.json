@@ -83,7 +83,7 @@
       "owner": "You, Jeet",
       "tasks": [
         { "id": "t-4.1", "name": "Editorial badges: Staff Pick, First Edition, Verified", "owner": "You", "dependencies": ["t-2.12"], "status": "pending" },
-        { "id": "t-4.2", "name": "Health check service: GET /api/health on all deployed agents", "owner": "Jeet", "dependencies": ["t-2.9"], "status": "pending" },
+        { "id": "t-4.2", "name": "Health check service: GET /api/health on all deployed agents", "owner": "Jeet", "dependencies": ["t-2.9"], "status": "completed", "note": "Created lib/health-check.ts with runAllHealthChecks() and runSingleHealthCheck(). Routes: GET /api/health/agents (all agents), POST /api/health/agents/[deploymentId] (single). Schema: health_check_history table added. Probes with 10s timeout, validates status:ok, records results." },
         { "id": "t-4.3", "name": "Vercel Cron job: health check every 6 hours", "owner": "Jeet", "dependencies": ["t-4.2"], "status": "pending" },
         { "id": "t-4.4", "name": "Trust score computation service (Day 8+ when data exists)", "owner": "You", "dependencies": ["t-4.3"], "status": "pending" },
         { "id": "t-4.5", "name": "Usage metrics API: collect API calls, response times, error rates", "owner": "Jeet", "dependencies": ["t-4.2"], "status": "pending" },
