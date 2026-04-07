@@ -70,3 +70,18 @@ export const deploymentTests = pgTable("deployment_tests", {
   error_message: text("error_message"),
   tested_at: timestamp("tested_at").defaultNow().notNull(),
 });
+
+// Health check history — all health probe results (t-4.2)
+export const healthCheckHistory = pgTable("health_check_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agent_id: uuid("agent_id")
+    .references(() => agents.id)
+    .notNull(),
+  deployment_id: uuid("deployment_id")
+    .references(() => deployments.id),
+  healthy: integer("healthy").notNull(), // 1 = healthy, 0 = unhealthy
+  status_code: integer("status_code"),
+  response_time_ms: integer("response_time_ms").notNull(),
+  error_message: text("error_message"),
+  checked_at: timestamp("checked_at").defaultNow().notNull(),
+});
