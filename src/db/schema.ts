@@ -47,7 +47,7 @@ export const deployments = pgTable("deployments", {
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Usage Metrics — per-agent metrics
+// Usage metrics — per-agent metrics
 export const usageMetrics = pgTable("usage_metrics", {
   id: uuid("id").primaryKey().defaultRandom(),
   agent_id: uuid("agent_id")
@@ -56,4 +56,32 @@ export const usageMetrics = pgTable("usage_metrics", {
   metric_type: text("metric_type").notNull(), // api_calls, response_time, errors
   value: decimal("value").notNull(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+// Deployment tests — demo test results (t-2.9)
+export const deploymentTests = pgTable("deployment_tests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  deployment_id: uuid("deployment_id")
+    .references(() => deployments.id)
+    .notNull(),
+  success: integer("success").notNull(), // 1 = pass, 0 = fail
+  status_code: integer("status_code"),
+  response_time_ms: integer("response_time_ms").notNull(),
+  error_message: text("error_message"),
+  tested_at: timestamp("tested_at").defaultNow().notNull(),
+});
+
+// Health check history — all health probe results (t-4.2)
+export const healthCheckHistory = pgTable("health_check_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agent_id: uuid("agent_id")
+    .references(() => agents.id)
+    .notNull(),
+  deployment_id: uuid("deployment_id")
+    .references(() => deployments.id),
+  healthy: integer("healthy").notNull(), // 1 = healthy, 0 = unhealthy
+  status_code: integer("status_code"),
+  response_time_ms: integer("response_time_ms").notNull(),
+  error_message: text("error_message"),
+  checked_at: timestamp("checked_at").defaultNow().notNull(),
 });
