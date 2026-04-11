@@ -89,7 +89,7 @@
         { "id": "t-4.5", "name": "Usage metrics API: collect API calls, response times, error rates", "owner": "Jeet", "dependencies": ["t-4.2"], "status": "completed", "note": "Created lib/usage-metrics.ts with recordMetric, recordApiCall, recordResponseTime, recordError, getAgentMetrics (aggregated with avg/p95 response time, error rate). Routes: POST /api/metrics (record), GET /api/metrics/[agentId] (query by hours)."
  },
         { "id": "t-4.6", "name": "Per-agent analytics page with charts", "owner": "Sagar", "dependencies": ["t-4.5"], "status": "pending" },
-        { "id": "t-4.7", "name": "Deployment history with success/failure tracking", "owner": "You", "dependencies": ["t-2.10"], "status": "pending" }
+        { "id": "t-4.7", "name": "Deployment history with success/failure tracking", "owner": "You", "dependencies": ["t-2.10"], "status": "completed" }
       ]
     },
     {
