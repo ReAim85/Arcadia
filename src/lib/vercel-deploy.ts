@@ -1,6 +1,7 @@
 import { getPool } from "@/db/client";
 import { decrypt } from "./encryption";
 import { generateAgentPackage } from "./agent-packager";
+import { assignEditorialBadge } from "./badge-service";
 
 /**
  * Vercel cross-account deploy (t-1.6, t-2.6)
@@ -271,7 +272,7 @@ export async function setVercelEnvVars(
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
+      await response.text(); // Response body is intentionally unused - we only need to know it's an error
       if (response.status === 409) {
         // Env var already exists — update it via PUT
         const updateResponse = await fetch(
@@ -386,30 +387,59 @@ async function pollDeploymentStatus(
   return "BUILDING"; // timed out — still building
 }
 
-async function recordDeployment(
+/**
+ * Records agent and deployment via the marketplace API.
+ * Uses POST /api/agents for agent registration and direct DB insert for deployment.
+ */
+async function recordDeploymentViaApi(
+  userId: string,
   slug: string,
   name: string,
   githubUrl: string,
   vercelDeploymentId: string,
   vercelProjectId: string,
   url: string,
-): Promise<void> {
+): Promise<{ agentId: string; deploymentId: string }> {
+  // 1. Register agent via API
+  const agentResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/agents`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      slug,
+      name,
+      description: '', // Description will be filled later or can be passed as parameter
+      category: 'uncategorized',
+      github_url: githubUrl,
+      vercel_project_id: vercelProjectId,
+      vercel_url: url,
+      owner_id: userId, // Use the authenticated user ID
+      // Badge will be assigned by the badge service after deployment
+      badge: null,
+    }),
+  });
+
+  if (!agentResponse.ok) {
+    throw new Error(`Failed to register agent: ${await agentResponse.text()}`);
+  }
+
+  const agentData = await agentResponse.json();
+  const agentId = agentData.id;
+
+  // 2. Record deployment directly in DB (no API endpoint for deployments yet)
   const pool = getPool();
-
-  await pool.query(
-    `INSERT INTO agents (slug, name, github_url, vercel_project_id, vercel_url, owner_id, badge, status)
-     VALUES ($1, $2, $3, $4, $5, NULL, 'First Edition', 'live')
-     ON CONFLICT (slug) DO UPDATE
-       SET vercel_url = $5, vercel_project_id = $4, status = 'live'`,
-    [slug, name, githubUrl, vercelProjectId, url],
-  );
-
-  await pool.query(
+  const deploymentResult = await pool.query(
     `INSERT INTO deployments (agent_id, vercel_deployment_id, url, status, deployed_at)
-     SELECT id, $2, $3, 'live', NOW()
-     FROM agents WHERE slug = $1`,
-    [slug, vercelDeploymentId, url],
+     VALUES ($1, $2, $3, 'live', NOW())
+     RETURNING id`,
+    [agentId, vercelDeploymentId, url],
   );
+
+  return {
+    agentId,
+    deploymentId: deploymentResult.rows[0].id,
+  };
 }
 
 // ---------- Public API ----------
@@ -486,13 +516,14 @@ export async function deployToVercel(
     // 5. Package agent with Vercel config
     const packaging = generateAgentPackage({
       name: projectName,
-      framework: framework as any,
+      framework: framework,
     });
 
     const packagedFiles = packaging.success ? packaging.files : undefined;
 
-    // 6. Record in DB
-    await recordDeployment(
+    // 6. Record via API - we don't need the IDs here but the function returns them for consistency
+    const agentResult = await recordDeploymentViaApi(
+      userId,
       projectName,
       projectName,
       githubUrl,
@@ -500,6 +531,14 @@ export async function deployToVercel(
       project.projectId,
       url,
     );
+
+    // Assign First Edition badge to newly deployed agents
+    try {
+      await assignEditorialBadge(agentResult.agentId, "First Edition");
+    } catch (badgeError) {
+      console.warn("Failed to assign First Edition badge:", badgeError);
+      // Don't fail the deployment if badge assignment fails
+    }
 
     if (status !== "READY") {
       return { success: true, deploymentId, url, projectId: project.projectId, packagedFiles };
