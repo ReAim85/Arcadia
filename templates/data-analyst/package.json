@@ -1,0 +1,17 @@
+{
+  "name": "data-analyst-agent",
+  "version": "1.0.0",
+  "description": "Converts natural language to SQL queries and provides insights",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

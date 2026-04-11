@@ -56,8 +56,8 @@
         { "id": "t-2.8", "name": "Trigger Vercel deploy, wait for completion, capture URL", "owner": "Krishna", "dependencies": ["t-2.7"], "status": "completed", "note": "Already built in deployToVercel() — createDeployment() triggers deploy via /v13/deployments with gitSource, pollDeploymentStatus() polls /v6/deployments/{id} until READY/ERROR with 120s timeout, URL captured and returned in DeployResult. No new code needed." },
         { "id": "t-2.9", "name": "Run demo test on deployed agent, validate /api/demo returns result", "owner": "Jeet", "dependencies": ["t-2.8"], "status": "completed", "note": "Created demo test runner at lib/demo-test.ts + POST /api/deploy/[deploymentId]/demo-test route. Calls POST /api/demo on deployed agent, validates agent contract response { result | demo_config }, records test result + response time in DB. Schema: deployment_tests table added." },
         { "id": "t-2.10", "name": "Register agent in marketplace DB with deployment metadata", "owner": "You", "dependencies": ["t-2.9"], "status": "completed" },
-        { "id": "t-2.11", "name": "Build 4 seed templates: API Builder, Live Debugger, Code Reviewer, Data Analyst", "owner": "All", "dependencies": ["t-2.5"], "status": "pending" },
-        { "id": "t-2.12", "name": "Deploy seed templates to marketplace", "owner": "Krishna", "dependencies": ["t-2.10", "t-2.11"], "status": "pending" }
+        { "id": "t-2.11", "name": "Build 4 seed templates: API Builder, Live Debugger, Code Reviewer, Data Analyst", "owner": "All", "dependencies": ["t-2.5"], "status": "completed" },
+        { "id": "t-2.12", "name": "Deploy seed templates to marketplace", "owner": "Krishna", "dependencies": ["t-2.10", "t-2.11"], "status": "completed" }
       ]
     },
     {
