@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runDemoTest, recordDemoTestResult } from "@/lib/demo-test";
 import { getPool } from "@/db/client";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
 /**
  * POST /api/deploy/[deploymentId]/demo-test
@@ -15,6 +16,15 @@ export async function POST(
 ) {
   try {
     const { deploymentId } = await params;
+
+    // Validate deploymentId format
+    const deploymentIdPattern = /^[a-zA-Z0-9_-]+$/;
+    if (!deploymentIdPattern.test(deploymentId)) {
+      return NextResponse.json(
+        { error: "Invalid deploymentId format" },
+        { status: 400 }
+      );
+    }
 
     // Fetch the deployment with agent info
     const pool = getPool();
@@ -81,7 +91,7 @@ export async function POST(
   } catch (error) {
     console.error("POST /api/deploy/demo-test error:", error);
     return NextResponse.json(
-      { error: "Internal server error during demo test" },
+      { error: sanitizeError(error).message },
       { status: 500 },
     );
   }

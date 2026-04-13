@@ -1,57 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordMetric } from "@/lib/usage-metrics";
-
-const VALID_TYPES = ["api_calls", "response_time", "errors"] as const;
+import { getAgentMetrics, getRecentErrors } from "@/lib/usage-metrics";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
 /**
- * POST /api/metrics
+ * GET /api/metrics
  *
- * Record a single usage metric for an agent.
- * Body: { agentId, metricType: "api_calls" | "response_time" | "errors", value: number }
+ * Get aggregated usage metrics for all agents.
+ * Query params: hours? (default 24)
+ *
+ * Returns: summary of API calls, response times, error rates per agent.
  */
-export async function POST(request: NextRequest) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
   try {
-    const body = await request.json();
-    const { agentId, metricType, value } = body as {
-      agentId?: string;
-      metricType?: string;
-      value?: number;
-    };
+    const { agentId } = await params;
 
-    if (!agentId || !metricType || value === undefined || value === null) {
+    const searchParams = _request.nextUrl.searchParams;
+    const hours = parseInt(searchParams.get("hours") ?? "24", 10);
+
+    if (isNaN(hours) || hours <= 0) {
       return NextResponse.json(
-        { error: "agentId, metricType, and value are required" },
+        { error: "hours must be a positive number" },
         { status: 400 },
       );
     }
 
-    if (!VALID_TYPES.includes(metricType as (typeof VALID_TYPES)[number])) {
+    if (hours > 168) {
       return NextResponse.json(
-        { error: `metricType must be one of: ${VALID_TYPES.join(", ")}` },
+        { error: "hours cannot exceed 168 (7 days)" },
         { status: 400 },
       );
     }
 
-    if (typeof value !== "number" || value < 0) {
+    const metrics = await getAgentMetrics(agentId, hours);
+    if (!metrics) {
       return NextResponse.json(
-        { error: "value must be a non-negative number" },
-        { status: 400 },
+        { error: "No metrics found for this agent" },
+        { status: 404 },
       );
     }
 
-    await recordMetric(agentId, metricType as (typeof VALID_TYPES)[number], value);
+    const recentErrors = await getRecentErrors(agentId, 5);
 
     return NextResponse.json({
-      success: true,
       agentId,
-      metricType,
-      value,
+      windowHours: hours,
+      summary: {
+        totalApiCalls: metrics.totalApiCalls,
+        avgResponseTimeMs: metrics.avgResponseTimeMs,
+        p95ResponseTimeMs: metrics.p95ResponseTimeMs,
+        totalErrors: metrics.totalErrors,
+        errorRate: metrics.errorRate,
+      },
+      recentErrors: recentErrors.map((e) => ({
+        value: e.value,
+        timestamp: e.timestamp,
+      })),
     });
   } catch (error) {
-    console.error("POST /api/metrics error:", error);
+    console.error("GET /api/metrics error:", error);
     return NextResponse.json(
-      { error: "Internal server error recording metric" },
-      { status: 500 },
+      { error: sanitizeError(error).message },
+      { status: 500 }
     );
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deployToVercel } from "@/lib/vercel-deploy";
 import { getPool } from "@/db/client";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
 /**
  * POST /api/deploy/seed
@@ -19,6 +20,10 @@ import { getPool } from "@/db/client";
  */
 export async function POST(request: NextRequest) {
   try {
+    // Apply CORS
+    const corsResponse = withCORS(request);
+    if (corsResponse) return corsResponse;
+
     const body = await request.json();
     const {
       userId,
@@ -45,11 +50,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate userId format (UUID or similar)
+    const userIdPattern = /^[a-zA-Z0-9_-]+$/;
+    if (!userIdPattern.test(userId)) {
+      return NextResponse.json(
+        { error: "Invalid userId format" },
+        { status: 400 }
+      );
+    }
+
     // Validate template type
     const validTemplates = ["api-builder", "live-debugger", "code-reviewer", "data-analyst"];
     if (!validTemplates.includes(template)) {
       return NextResponse.json(
         { error: `template must be one of: ${validTemplates.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate projectName if provided
+    if (projectName && projectName.length > 100) {
+      return NextResponse.json(
+        { error: "projectName must not exceed 100 characters" },
         { status: 400 }
       );
     }
@@ -67,6 +89,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const userRow = userResult.rows[0];
 
     // For seed templates, we'll use a placeholder GitHub URL pointing to our template
     // In a real implementation, these would be actual GitHub repositories
@@ -104,7 +128,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/deploy/seed error:", error);
     return NextResponse.json(
-      { error: "Internal server error during seed template deployment" },
+      { error: sanitizeError(error).message },
       { status: 500 }
     );
   }

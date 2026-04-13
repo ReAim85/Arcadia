@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentMetrics, getRecentErrors } from "@/lib/usage-metrics";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
 /**
  * GET /api/metrics/[agentId]
@@ -11,7 +12,7 @@ import { getAgentMetrics, getRecentErrors } from "@/lib/usage-metrics";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> },
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
     const { agentId } = await params;
@@ -22,6 +23,13 @@ export async function GET(
     if (isNaN(hours) || hours <= 0) {
       return NextResponse.json(
         { error: "hours must be a positive number" },
+        { status: 400 },
+      );
+    }
+
+    if (hours > 168) {
+      return NextResponse.json(
+        { error: "hours cannot exceed 168 (7 days)" },
         { status: 400 },
       );
     }
@@ -54,8 +62,8 @@ export async function GET(
   } catch (error) {
     console.error("GET /api/metrics/[agentId] error:", error);
     return NextResponse.json(
-      { error: "Internal server error fetching metrics" },
-      { status: 500 },
+      { error: sanitizeError(error).message },
+      { status: 500 }
     );
   }
 }

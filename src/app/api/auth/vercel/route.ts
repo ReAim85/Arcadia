@@ -1,66 +1,52 @@
-import { NextResponse } from "next/server";
-import { getPool } from "@/db/client";
-import { encrypt } from "@/lib/encryption";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyVercelAuthToken } from "@/lib/auth-utils";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
-export async function POST(request: Request) {
+/**
+ * POST /api/auth/vercel
+ *
+ * Exchange Vercel OAuth token for session token.
+ * Uses Vercel-provided session tokens for secure agent hub access.
+ */
+export async function POST(request: NextRequest) {
   try {
+    // Apply CORS
+    const corsResponse = withCORS(request);
+    if (corsResponse) return corsResponse;
+
     const body = await request.json();
-    const { token, teamId } = body;
+    const { token } = body;
 
     if (!token) {
       return NextResponse.json(
-        { error: "token is required" },
+        { error: "Vercel token is required" },
         { status: 400 }
       );
     }
 
-    // Validate token by calling Vercel API
-    const vercelRes = await fetch("https://api.vercel.com/v2/user", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Verify and validate token
+    const validationResult = await verifyVercelAuthToken(token);
 
-    if (!vercelRes.ok) {
+    if (!validationResult.valid) {
       return NextResponse.json(
-        { error: "Invalid Vercel token" },
+        {
+          error: validationResult.error || "Invalid Vercel token"
+        },
         { status: 401 }
       );
     }
 
-    const vercelUser = await vercelRes.json();
-    const vercelId = vercelUser?.id as string | undefined;
-    const username = vercelUser?.username as string | undefined;
-
-    if (!vercelId) {
-      return NextResponse.json(
-        { error: "Could not identify Vercel user" },
-        { status: 502 }
-      );
-    }
-
-    // Encrypt the Vercel token and upsert the user record
-    const pool = getPool();
-    const encrypted = encrypt(token);
-    const result = await pool.query(
-      `INSERT INTO users (vercel_team_id, vercel_token_encrypted, vercel_id, username)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (vercel_id) DO UPDATE
-         SET vercel_token_encrypted = $2, vercel_team_id = $1, username = $4
-       RETURNING id`,
-      [teamId || null, encrypted, vercelId, username || null]
-    );
-
+    // Return session token and user info
     return NextResponse.json({
       success: true,
-      userId: result.rows[0].id,
-      vercelId,
-      username,
+      sessionToken: validationResult.sessionToken,
+      userId: validationResult.userId,
+      vercelTeamId: validationResult.vercelTeamId,
     });
   } catch (error) {
     console.error("POST /api/auth/vercel error:", error);
     return NextResponse.json(
-      { error: "Failed to authenticate Vercel account" },
+      { error: sanitizeError(error).message },
       { status: 500 }
     );
   }

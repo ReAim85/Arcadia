@@ -1,56 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runSingleHealthCheck } from "@/lib/health-check";
+import { withCORS, sanitizeError } from "@/lib/security-middleware";
 
 /**
- * POST /api/health/agents/[deploymentId]
+ * GET /api/health/agents/[deploymentId]
  *
- * Run a health check against a single deployed agent.
+ * Health check for a specific deployment.
+ * Returns HTTP status code and response time for the deployment's /api/demo endpoint.
  */
-export async function POST(
+export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ deploymentId: string }> },
+  { params }: { params: Promise<{ deploymentId: string }> }
 ) {
   try {
     const { deploymentId } = await params;
 
-    const result = await runSingleHealthCheck(deploymentId);
+    const healthResult = await runSingleHealthCheck(deploymentId);
 
-    if (!result) {
+    if (!healthResult.healthy) {
       return NextResponse.json(
-        { error: "No deployment found with that ID" },
-        { status: 404 },
+        {
+          healthy: false,
+          error: healthResult.error || "Health check failed",
+          responseTime: healthResult.responseTime,
+        },
+        { status: 503 },
       );
     }
 
-    if (result.healthy) {
-      return NextResponse.json({
-        agentName: result.agentName,
-        agentSlug: result.agentSlug,
-        healthy: true,
-        url: result.url,
-        statusCode: result.statusCode,
-        responseTimeMs: result.responseTimeMs,
-        checkedAt: result.checkedAt,
-      });
-    }
-
-    return NextResponse.json(
-      {
-        agentName: result.agentName,
-        agentSlug: result.agentSlug,
-        healthy: false,
-        url: result.url,
-        error: result.error,
-        responseTimeMs: result.responseTimeMs,
-        checkedAt: result.checkedAt,
-      },
-      { status: 422 },
-    );
+    return NextResponse.json({
+      healthy: true,
+      responseTime: healthResult.responseTime,
+      statusCode: healthResult.statusCode,
+      checkedAt: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error("POST /api/health/agents/[deploymentId] error:", error);
+    console.error("GET /api/health/agents/[deploymentId] error:", error);
     return NextResponse.json(
-      { error: "Internal server error during health check" },
-      { status: 500 },
+      { error: sanitizeError(error).message },
+      { status: 500 }
     );
   }
 }

@@ -26,6 +26,3 @@ yarn-error.log*
 # OS
 .DS_Store
 *.pem
-
-# Local design docs
-DESIGN_SPEC.md
