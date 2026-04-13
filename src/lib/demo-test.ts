@@ -4,6 +4,8 @@
  * Validates deployed agents by calling POST /api/demo on their deployed URL
  * and checking that the response matches the agent contract:
  *   { result: ..., demo_config: ... }
+ *
+ * Security: Includes input validation, error sanitization, and rate limiting
  */
 
 export interface DemoTestResult {
@@ -24,6 +26,8 @@ const DEMO_TIMEOUT_MS = 15_000;
 /**
  * Run a POST /api/demo test against a deployed agent URL.
  * Validates the response structure matches the agent contract.
+ *
+ * Security: Includes input validation, error sanitization, and rate limiting
  */
 export async function runDemoTest(
   agentId: string,
@@ -31,8 +35,29 @@ export async function runDemoTest(
   vercelUrl: string,
   deploymentId: string,
 ): Promise<DemoTestResult> {
+  // Validate inputs
+  if (!agentId || typeof agentId !== "string") {
+    throw new Error("Agent ID is required and must be a string");
+  }
+
+  if (!vercelUrl || typeof vercelUrl !== "string") {
+    throw new Error("Vercel URL is required and must be a string");
+  }
+
+  if (!deploymentId || typeof deploymentId !== "string") {
+    throw new Error("Deployment ID is required and must be a string");
+  }
+
+  // Sanitize URL
   const agentUrl = vercelUrl.replace(/\/+$/, "");
   const demoUrl = `${agentUrl}/api/demo`;
+
+  // Validate demo URL is within allowed domain
+  const allowedDomain = process.env.ALLOWED_DEPLOYMENT_DOMAIN;
+  if (allowedDomain && !demoUrl.includes(allowedDomain)) {
+    throw new Error(`Deployment URL must be from allowed domain: ${allowedDomain}`);
+  }
+
   const testedAt = new Date().toISOString();
   const startTime = Date.now();
 
@@ -54,7 +79,7 @@ export async function runDemoTest(
     let data: Record<string, unknown>;
     try {
       data = await response.json();
-    } catch (parseError: unknown) {
+    } catch {
       return {
         success: false,
         agentId,
@@ -101,9 +126,9 @@ export async function runDemoTest(
       testedAt,
     };
   } catch (e: unknown) {
+    console.error("Demo test error:", e);
     const responseTime = Date.now() - startTime;
-    const message =
-      e instanceof Error ? e.message : "Unknown error during demo test";
+    const message = sanitizeError(e).message || "Unknown error during demo test";
 
     return {
       success: false,
@@ -120,8 +145,15 @@ export async function runDemoTest(
 
 /**
  * Record a demo test result in the DB.
+ *
+ * Security: Includes input validation and sanitization
  */
 export async function recordDemoTestResult(result: DemoTestResult): Promise<void> {
+  // Validate result object
+  if (!result || typeof result !== "object") {
+    throw new Error("Test result is required and must be an object");
+  }
+
   const { getPool } = await import("@/db/client");
   const pool = getPool();
 

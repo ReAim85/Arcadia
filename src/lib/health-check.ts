@@ -76,8 +76,7 @@ async function probeAgent(
     try {
       const body = await response.json();
       status = (body as Record<string, unknown>).status === "ok" ? "ok" : null;
-    } catch (parseError: unknown) {
-      const _ = parseError;
+    } catch {
       status = null;
     }
 

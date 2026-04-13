@@ -2,6 +2,11 @@ import { getPool } from "@/db/client";
 import { decrypt } from "./encryption";
 import { generateAgentPackage } from "./agent-packager";
 import { assignEditorialBadge } from "./badge-service";
+import { sanitizeError } from "./security-middleware";
+
+// Validate GitHub URL pattern
+const GITHUB_REPO_REGEX = /^https?:\/\/github\.com\/[^\/]+\/[^\/]+$/;
+const GITHUB_RAW_REGEX = /^https?:\/\/raw\.githubusercontent\.com\/[^\/]+\/[^\/]+\/[^\/]+$/;
 
 /**
  * Vercel cross-account deploy (t-1.6, t-2.6)
@@ -450,6 +455,64 @@ export async function deployToVercel(
   const { userId, githubUrl, projectName } = options;
 
   try {
+    // Validate input parameters
+    if (!userId || userId.length < 1) {
+      return { success: false, error: "User ID is required" };
+    }
+
+    if (!githubUrl || typeof githubUrl !== "string") {
+      return { success: false, error: "GitHub URL is required" };
+    }
+
+    // Validate GitHub URL format
+    if (!GITHUB_REPO_REGEX.test(githubUrl)) {
+      return {
+        success: false,
+        error: "Invalid GitHub repository URL. Must be in the format: https://github.com/owner/repo",
+      };
+    }
+
+    // Validate project name
+    if (!projectName || typeof projectName !== "string") {
+      return { success: false, error: "Project name is required" };
+    }
+
+    if (projectName.length < 3 || projectName.length > 50) {
+      return {
+        success: false,
+        error: "Project name must be between 3 and 50 characters",
+      };
+    }
+
+    // Validate project name against forbidden patterns
+    const forbiddenPatterns = [/^[0-9]/, /[^a-zA-Z0-9-]/];
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(projectName)) {
+        return {
+          success: false,
+          error: "Project name must start with a letter and contain only alphanumeric characters and hyphens",
+        };
+      }
+    }
+
+    // Validate environment variables
+    if (options.envVars) {
+      if (!Array.isArray(options.envVars)) {
+        return { success: false, error: "envVars must be an array" };
+      }
+
+      for (const envVar of options.envVars) {
+        if (!envVar || typeof envVar !== "object") {
+          return { success: false, error: "Each environment variable must be an object" };
+        }
+        if (!envVar.key || typeof envVar.key !== "string") {
+          return { success: false, error: "Environment variable key is required" };
+        }
+        if (!envVar.value || typeof envVar.value !== "string") {
+          return { success: false, error: "Environment variable value is required" };
+        }
+      }
+    }
     // 1. Fetch the user's encrypted token
     const pool = getPool();
     const userResult = await pool.query(
@@ -546,8 +609,12 @@ export async function deployToVercel(
 
     return { success: true, deploymentId, url, projectId: project.projectId, packagedFiles };
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    return { success: false, error: `Deploy failed: ${errorMessage}` };
+    console.error("Deploy to Vercel error:", e);
+    const sanitizedError = sanitizeError(e);
+    return {
+      success: false,
+      error: sanitizedError.message || "Deployment failed due to an unexpected error",
+    };
   }
 }
 
