@@ -107,7 +107,8 @@
         { "id": "t-5.7", "name": "Performance: Lighthouse audit, image optimization, code splitting", "owner": "Sagar", "dependencies": ["t-3.7"], "status": "pending" },
         { "id": "t-5.8", "name": "Demo recording fallback", "owner": "You", "dependencies": ["t-5.5"], "status": "pending" },
         { "id": "t-5.9", "name": "README, deploy guide, agent spec documentation", "owner": "You", "dependencies": ["t-5.6"], "status": "pending" },
-        { "id": "t-5.10", "name": "Public launch — shareable URL, social distribution", "owner": "You", "dependencies": ["t-5.9"], "status": "pending" }
+        { "id": "t-5.10", "name": "Public launch — shareable URL, social distribution", "owner": "You", "dependencies": ["t-5.9"], "status": "pending" },
+        { "id": "t-5.11", "name": "Security middleware across all API routes (CORS, error sanitization)", "owner": "You", "dependencies": ["t-5.6"], "status": "completed", "note": "Applied withCORS() and sanitizeError() to all API routes (health, agents, metrics, auth, deploy). Updated async searchParams handling to use 'await' per Next.js 16 best practice. Fixed src/proxy.ts to export default proxy function. Fixed health check route to use correct function (runSingleHealthCheck)." }
       ]
     }
   ],
